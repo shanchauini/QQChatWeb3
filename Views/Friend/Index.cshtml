@@ -1,0 +1,57 @@
+@model IEnumerable<QQChatWeb3.Models.User>
+
+@{
+    ViewData["Title"] = "好友列表";
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3>好友列表</h3>
+                    <div>
+                        <a asp-action="Search" class="btn btn-primary">添加好友</a>
+                        <a asp-action="Requests" class="btn btn-info">好友申请</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (!Model.Any())
+                    {
+                        <div class="alert alert-info">
+                            您还没有好友，快去添加吧！
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row">
+                            @foreach (var friend in Model)
+                            {
+                                <div class="col-md-4 mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title">@friend.UserName</h5>
+                                            <p class="card-text">
+                                                <small class="text-muted">ID: @friend.UserId</small><br>
+                                                <small class="text-muted">性别: @friend.Gender</small>
+                                            </p>
+                                            <div class="btn-group">
+                                                <a asp-controller="Message" asp-action="Chat" asp-route-friendId="@friend.UserId" 
+                                                   class="btn btn-primary">发送消息</a>
+                                                <form asp-action="Delete" method="post" class="d-inline">
+                                                    <input type="hidden" name="friendId" value="@friend.UserId" />
+                                                    <button type="submit" class="btn btn-danger" 
+                                                            onclick="return confirm('确定要删除该好友吗？')">删除</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 

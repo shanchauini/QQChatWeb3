@@ -1,0 +1,76 @@
+@model IEnumerable<QQChatWeb3.Models.User>
+
+@{
+    ViewData["Title"] = "搜索好友";
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3>搜索好友</h3>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Search" method="post" class="mb-4">
+                        <div class="input-group">
+                            <input type="text" name="searchTerm" class="form-control" placeholder="输入用户名搜索...">
+                            <button type="submit" class="btn btn-primary">搜索</button>
+                        </div>
+                    </form>
+
+                    @if (Model != null && Model.Any())
+                    {
+                        <div class="row">
+                            @foreach (var user in Model)
+                            {
+                                <div class="col-md-4 mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title">@user.UserName</h5>
+                                            <p class="card-text">
+                                                <small class="text-muted">ID: @user.UserId</small><br>
+                                                <small class="text-muted">性别: @user.Gender</small>
+                                            </p>
+                                            <button class="btn btn-primary send-request" data-user-id="@user.UserId">添加好友</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (ViewContext.HttpContext.Request.Method == "POST")
+                    {
+                        <div class="alert alert-info">
+                            没有找到匹配的用户
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('.send-request').click(function() {
+                var userId = $(this).data('user-id');
+                var button = $(this);
+                
+                $.post('@Url.Action("SendRequest")', { receiverId: userId })
+                    .done(function(response) {
+                        if (response.success) {
+                            alert('好友申请已发送');
+                            button.prop('disabled', true).text('已发送申请');
+                        } else {
+                            alert(response.message || '发送申请失败');
+                        }
+                    })
+                    .fail(function() {
+                        alert('发送申请失败，请稍后重试');
+                    });
+            });
+        });
+    </script>
+} 

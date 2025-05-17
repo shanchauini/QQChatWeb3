@@ -1,0 +1,187 @@
+@model IEnumerable<QQChatWeb3.Models.Message>
+
+@{
+    ViewData["Title"] = "聊天";
+    var friend = ViewBag.Friend as QQChatWeb3.Models.User;
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3>与 @friend.UserName 的聊天</h3>
+                    <a asp-controller="Friend" asp-action="Index" class="btn btn-secondary">返回好友列表</a>
+                </div>
+                <div class="card-body">
+                    <div id="chat-messages" class="chat-messages mb-3" style="height: 400px; overflow-y: auto;">
+                        @foreach (var message in Model)
+                        {
+                            var isCurrentUser = message.SendId == Context.Session.GetInt32("UserId");
+                            <div class="message @(isCurrentUser ? "message-sent" : "message-received")">
+                                <div class="message-content">
+                                    @if (message.MessageType == "Text")
+                                    {
+                                        <p>@message.Content</p>
+                                    }
+                                    else
+                                    {
+                                        <a href="@message.File.FilePath" target="_blank" class="btn btn-sm btn-info">
+                                            <i class="fas fa-file"></i> @message.Content
+                                        </a>
+                                    }
+                                    <small class="text-muted">@message.SendTime.ToString("yyyy-MM-dd HH:mm")</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <form id="message-form" class="message-form">
+                        <input type="hidden" id="receiverId" value="@friend.UserId" />
+                        <div class="input-group">
+                            <input type="text" id="message-content" class="form-control" placeholder="输入消息...">
+                            <button type="button" class="btn btn-primary" id="send-message">发送</button>
+                            <label class="btn btn-secondary">
+                                <i class="fas fa-paperclip"></i>
+                                <input type="file" id="file-upload" style="display: none;">
+                            </label>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .chat-messages {
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 0.25rem;
+        }
+
+        .message {
+            margin-bottom: 1rem;
+            max-width: 70%;
+        }
+
+        .message-sent {
+            margin-left: auto;
+        }
+
+        .message-received {
+            margin-right: auto;
+        }
+
+        .message-content {
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            background-color: #fff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .message-sent .message-content {
+            background-color: #007bff;
+            color: #fff;
+        }
+
+        .message-sent .message-content small {
+            color: rgba(255,255,255,0.8);
+        }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            var chatMessages = $('#chat-messages');
+            chatMessages.scrollTop(chatMessages[0].scrollHeight);
+
+            function addMessage(message, isSent) {
+                var messageHtml = `
+                    <div class="message ${isSent ? 'message-sent' : 'message-received'}">
+                        <div class="message-content">
+                            ${message.messageType === 'Text' 
+                                ? `<p>${message.content}</p>`
+                                : `<a href="${message.filePath}" target="_blank" class="btn btn-sm btn-info">
+                                     <i class="fas fa-file"></i> ${message.content}
+                                   </a>`
+                            }
+                            <small class="text-muted">${new Date().toLocaleString()}</small>
+                        </div>
+                    </div>
+                `;
+                chatMessages.append(messageHtml);
+                chatMessages.scrollTop(chatMessages[0].scrollHeight);
+            }
+
+            $('#send-message').click(function() {
+                var content = $('#message-content').val().trim();
+                if (!content) return;
+
+                var receiverId = $('#receiverId').val();
+                
+                $.post('@Url.Action("Send")', { receiverId: receiverId, content: content })
+                    .done(function(response) {
+                        if (response.success) {
+                            addMessage({
+                                content: content,
+                                messageType: 'Text'
+                            }, true);
+                            $('#message-content').val('');
+                        }
+                    });
+            });
+
+            $('#message-content').keypress(function(e) {
+                if (e.which == 13) {
+                    $('#send-message').click();
+                    return false;
+                }
+            });
+
+            $('#file-upload').change(function() {
+                var file = this.files[0];
+                if (!file) return;
+
+                var formData = new FormData();
+                formData.append('file', file);
+                formData.append('receiverId', $('#receiverId').val());
+
+                $.ajax({
+                    url: '@Url.Action("UploadFile")',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        if (response.success) {
+                            addMessage({
+                                content: file.name,
+                                messageType: 'File',
+                                filePath: response.filePath
+                            }, true);
+                        }
+                    }
+                });
+            });
+
+            // 定期检查新消息
+            setInterval(function() {
+                var lastMessageId = $('.message').last().data('message-id');
+                if (lastMessageId) {
+                    $.get('@Url.Action("GetNewMessages")', { 
+                        friendId: $('#receiverId').val(),
+                        lastMessageId: lastMessageId
+                    })
+                    .done(function(messages) {
+                        messages.forEach(function(message) {
+                            addMessage(message, false);
+                        });
+                    });
+                }
+            }, 5000);
+        });
+    </script>
+} 

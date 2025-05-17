@@ -1,0 +1,49 @@
+﻿@{
+    ViewData["Title"] = "主页";
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3>欢迎使用QQ聊天系统</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-users fa-3x mb-3 text-primary"></i>
+                                    <h5 class="card-title">好友管理</h5>
+                                    <p class="card-text">管理您的好友列表，添加新好友，处理好友申请。</p>
+                                    <a asp-controller="Friend" asp-action="Index" class="btn btn-primary">查看好友</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-comments fa-3x mb-3 text-success"></i>
+                                    <h5 class="card-title">消息历史</h5>
+                                    <p class="card-text">查看您的聊天记录，搜索历史消息。</p>
+                                    <a asp-controller="Message" asp-action="History" class="btn btn-success">查看历史</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-user-cog fa-3x mb-3 text-info"></i>
+                                    <h5 class="card-title">个人信息</h5>
+                                    <p class="card-text">管理您的个人信息和账号设置。</p>
+                                    <a asp-controller="User" asp-action="ManageInfo" class="btn btn-info">管理信息</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

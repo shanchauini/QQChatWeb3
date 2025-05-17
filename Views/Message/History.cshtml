@@ -1,0 +1,80 @@
+@model IEnumerable<QQChatWeb3.Models.Message>
+
+@{
+    ViewData["Title"] = "历史消息";
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3>历史消息</h3>
+                </div>
+                <div class="card-body">
+                    <form asp-action="History" method="get" class="mb-4">
+                        <div class="input-group">
+                            <input type="text" name="searchTerm" class="form-control" 
+                                   placeholder="搜索消息内容或用户名..." value="@ViewBag.SearchTerm">
+                            <button type="submit" class="btn btn-primary">搜索</button>
+                        </div>
+                    </form>
+
+                    @if (!Model.Any())
+                    {
+                        <div class="alert alert-info">
+                            暂无历史消息
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>发送者</th>
+                                        <th>接收者</th>
+                                        <th>内容</th>
+                                        <th>类型</th>
+                                        <th>发送时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var message in Model)
+                                    {
+                                        <tr>
+                                            <td>@message.Sender.UserName</td>
+                                            <td>@message.ReceiveId</td>
+                                            <td>
+                                                @if (message.MessageType == "Text")
+                                                {
+                                                    @message.Content
+                                                }
+                                                else
+                                                {
+                                                    <a href="@message.File.FilePath" target="_blank" class="btn btn-sm btn-info">
+                                                        <i class="fas fa-file"></i> @message.Content
+                                                    </a>
+                                                }
+                                            </td>
+                                            <td>@message.MessageType</td>
+                                            <td>@message.SendTime.ToString("yyyy-MM-dd HH:mm")</td>
+                                            <td>
+                                                <form asp-action="Delete" method="post" class="d-inline">
+                                                    <input type="hidden" name="messageId" value="@message.MessageId" />
+                                                    <button type="submit" class="btn btn-danger btn-sm" 
+                                                            onclick="return confirm('确定要删除这条消息吗？')">删除</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 
