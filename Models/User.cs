@@ -19,10 +19,10 @@ namespace QQChatWeb3.Models
         public bool IsBanned { get; set; } = false;
 
         [StringLength(10)]
-        public string Gender { get; set; } = "男";
+        public string? Gender { get; set; }
 
         [EmailAddress]
         [StringLength(50)]
-        public string Email { get; set; } = string.Empty;
+        public string? Email { get; set; }
     }
 } 

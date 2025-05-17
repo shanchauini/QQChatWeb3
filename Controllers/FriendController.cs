@@ -15,7 +15,7 @@ namespace QQChatWeb3.Controllers
             _logger = logger;
         }
 
-        // GET: Friend/Index
+        // GET: Friend
         public async Task<IActionResult> Index()
         {
             try
@@ -27,13 +27,23 @@ namespace QQChatWeb3.Controllers
                 }
 
                 var friendships = await _context.Friendships
-                    .Where(f => f.UserId1 == userId || f.UserId2 == userId)
                     .Include(f => f.User1)
                     .Include(f => f.User2)
+                    .Where(f => f.UserId1 == userId || f.UserId2 == userId)
                     .ToListAsync();
 
-                var friends = friendships.Select(f => 
-                    f.UserId1 == userId ? f.User2 : f.User1).ToList();
+                var friends = new List<User>();
+                foreach (var friendship in friendships)
+                {
+                    if (friendship.User1 != null && friendship.User1.UserId != userId)
+                    {
+                        friends.Add(friendship.User1);
+                    }
+                    else if (friendship.User2 != null && friendship.User2.UserId != userId)
+                    {
+                        friends.Add(friendship.User2);
+                    }
+                }
 
                 _logger.LogInformation($"获取到 {friends.Count} 个好友");
                 return View(friends);
@@ -46,21 +56,24 @@ namespace QQChatWeb3.Controllers
         }
 
         // GET: Friend/Search
-        public IActionResult Search()
-        {
-            return View();
-        }
-
-        // POST: Friend/Search
-        [HttpPost]
-        public async Task<IActionResult> Search(string searchTerm)
+        public async Task<IActionResult> Search(string? username)
         {
             try
             {
-                var users = await _context.Users
-                    .Where(u => u.UserName.Contains(searchTerm))
-                    .ToListAsync();
+                var userId = HttpContext.Session.GetInt32("UserId");
+                if (userId == null)
+                {
+                    return RedirectToAction("Login", "User");
+                }
 
+                var query = _context.Users.Where(u => u.UserId != userId);
+
+                if (!string.IsNullOrEmpty(username))
+                {
+                    query = query.Where(u => u.UserName != null && u.UserName.Contains(username));
+                }
+
+                var users = await query.ToListAsync();
                 _logger.LogInformation($"搜索到 {users.Count} 个用户");
                 return View(users);
             }
@@ -83,18 +96,13 @@ namespace QQChatWeb3.Controllers
                     return RedirectToAction("Login", "User");
                 }
 
-                var existingRequest = await _context.FriendRequests
-                    .FirstOrDefaultAsync(fr => 
-                        fr.SendId == senderId && 
-                        fr.ReceiveId == receiverId && 
-                        fr.RequestStatus == "申请中");
-
-                if (existingRequest != null)
+                if (await _context.FriendRequests
+                    .AnyAsync(r => r.SendId == senderId && r.ReceiveId == receiverId && r.RequestStatus == "申请中"))
                 {
                     return Json(new { success = false, message = "已经发送过好友申请" });
                 }
 
-                var friendRequest = new FriendRequest
+                var request = new FriendRequest
                 {
                     SendId = senderId.Value,
                     ReceiveId = receiverId,
@@ -102,16 +110,16 @@ namespace QQChatWeb3.Controllers
                     RequestDate = DateTime.Now
                 };
 
-                _context.FriendRequests.Add(friendRequest);
+                _context.FriendRequests.Add(request);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation($"用户 {senderId} 向用户 {receiverId} 发送了好友申请");
+                _logger.LogInformation($"发送好友申请成功");
                 return Json(new { success = true });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "发送好友申请时发生错误");
-                return Json(new { success = false, message = "发送申请失败，请稍后重试" });
+                return Json(new { success = false, message = "发送好友申请失败" });
             }
         }
 
@@ -127,16 +135,17 @@ namespace QQChatWeb3.Controllers
                 }
 
                 var requests = await _context.FriendRequests
-                    .Where(fr => fr.ReceiveId == userId && fr.RequestStatus == "申请中")
-                    .Include(fr => fr.Sender)
+                    .Include(r => r.Sender)
+                    .Where(r => r.ReceiveId == userId && r.RequestStatus == "申请中")
+                    .OrderByDescending(r => r.RequestDate)
                     .ToListAsync();
 
-                _logger.LogInformation($"获取到 {requests.Count} 个好友申请");
+                _logger.LogInformation($"获取到 {requests.Count} 条好友申请");
                 return View(requests);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "获取好友申请时发生错误");
+                _logger.LogError(ex, "获取好友申请列表时发生错误");
                 return View(new List<FriendRequest>());
             }
         }
@@ -147,38 +156,43 @@ namespace QQChatWeb3.Controllers
         {
             try
             {
+                var userId = HttpContext.Session.GetInt32("UserId");
+                if (userId == null)
+                {
+                    return RedirectToAction("Login", "User");
+                }
+
                 var request = await _context.FriendRequests
-                    .Include(fr => fr.Sender)
-                    .FirstOrDefaultAsync(fr => fr.RequestId == requestId);
+                    .FirstOrDefaultAsync(r => r.RequestId == requestId && r.ReceiveId == userId);
 
                 if (request == null)
                 {
-                    return Json(new { success = false, message = "请求不存在" });
+                    return NotFound();
                 }
 
                 request.RequestStatus = accept ? "已接受" : "已拒绝";
+                await _context.SaveChangesAsync();
 
                 if (accept)
                 {
                     var friendship = new Friendship
                     {
                         UserId1 = request.SendId,
-                        UserId2 = request.ReceiveId,
+                        UserId2 = userId.Value,
                         CreateDate = DateTime.Now
                     };
 
                     _context.Friendships.Add(friendship);
+                    await _context.SaveChangesAsync();
                 }
 
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"用户 {request.ReceiveId} {(accept ? "接受" : "拒绝")}了用户 {request.SendId} 的好友申请");
-                return Json(new { success = true });
+                _logger.LogInformation($"处理好友申请成功: {(accept ? "接受" : "拒绝")}");
+                return RedirectToAction(nameof(Requests));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "处理好友申请时发生错误");
-                return Json(new { success = false, message = "操作失败，请稍后重试" });
+                return RedirectToAction(nameof(Requests));
             }
         }
 
@@ -203,9 +217,9 @@ namespace QQChatWeb3.Controllers
                 {
                     _context.Friendships.Remove(friendship);
                     await _context.SaveChangesAsync();
-                    _logger.LogInformation($"用户 {userId} 删除了与用户 {friendId} 的好友关系");
                 }
 
+                _logger.LogInformation($"删除好友成功");
                 return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
