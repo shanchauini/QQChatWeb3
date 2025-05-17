@@ -167,7 +167,7 @@ namespace QQChatWeb3.Controllers
 
                 if (request == null)
                 {
-                    return NotFound();
+                    return Json(new { success = false, message = "请求不存在" });
                 }
 
                 request.RequestStatus = accept ? "已接受" : "已拒绝";
@@ -175,24 +175,33 @@ namespace QQChatWeb3.Controllers
 
                 if (accept)
                 {
-                    var friendship = new Friendship
-                    {
-                        UserId1 = request.SendId,
-                        UserId2 = userId.Value,
-                        CreateDate = DateTime.Now
-                    };
+                    // 检查是否已经存在好友关系
+                    var existingFriendship = await _context.Friendships
+                        .AnyAsync(f => 
+                            (f.UserId1 == request.SendId && f.UserId2 == userId) ||
+                            (f.UserId1 == userId && f.UserId2 == request.SendId));
 
-                    _context.Friendships.Add(friendship);
-                    await _context.SaveChangesAsync();
+                    if (!existingFriendship)
+                    {
+                        var friendship = new Friendship
+                        {
+                            UserId1 = request.SendId,
+                            UserId2 = userId.Value,
+                            CreateDate = DateTime.Now
+                        };
+
+                        _context.Friendships.Add(friendship);
+                        await _context.SaveChangesAsync();
+                    }
                 }
 
                 _logger.LogInformation($"处理好友申请成功: {(accept ? "接受" : "拒绝")}");
-                return RedirectToAction(nameof(Requests));
+                return Json(new { success = true });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "处理好友申请时发生错误");
-                return RedirectToAction(nameof(Requests));
+                return Json(new { success = false, message = "处理好友申请失败" });
             }
         }
 

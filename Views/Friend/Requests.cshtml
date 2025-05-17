@@ -5,11 +5,11 @@
 }
 
 <div class="container">
-    <div class="row">
-        <div class="col-md-12">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
-                    <h3>好友申请</h3>
+                    <h3 class="text-center">好友申请</h3>
                 </div>
                 <div class="card-body">
                     @if (!Model.Any())
@@ -20,30 +20,21 @@
                     }
                     else
                     {
-                        <div class="row">
-                            @foreach (var request in Model)
-                            {
-                                <div class="col-md-4 mb-3">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <h5 class="card-title">@request.Sender.UserName</h5>
-                                            <p class="card-text">
-                                                <small class="text-muted">ID: @request.Sender.UserId</small><br>
-                                                <small class="text-muted">申请时间: @request.RequestDate.ToString("yyyy-MM-dd HH:mm")</small>
-                                            </p>
-                                            <div class="btn-group">
-                                                <button class="btn btn-success handle-request" 
-                                                        data-request-id="@request.RequestId" 
-                                                        data-accept="true">接受</button>
-                                                <button class="btn btn-danger handle-request" 
-                                                        data-request-id="@request.RequestId" 
-                                                        data-accept="false">拒绝</button>
-                                            </div>
-                                        </div>
+                        foreach (var request in Model)
+                        {
+                            <div class="card mb-3 request-item" data-request-id="@request.RequestId">
+                                <div class="card-body">
+                                    <h5 class="card-title">@request.Sender?.UserName</h5>
+                                    <p class="card-text">
+                                        <small class="text-muted">申请时间：@request.RequestDate.ToString("yyyy-MM-dd HH:mm:ss")</small>
+                                    </p>
+                                    <div class="btn-group">
+                                        <button class="btn btn-success accept-request">接受</button>
+                                        <button class="btn btn-danger reject-request">拒绝</button>
                                     </div>
                                 </div>
-                            }
-                        </div>
+                            </div>
+                        }
                     }
                 </div>
             </div>
@@ -53,26 +44,27 @@
 
 @section Scripts {
     <script>
-        $(document).ready(function() {
-            $('.handle-request').click(function() {
-                var requestId = $(this).data('request-id');
-                var accept = $(this).data('accept');
-                var card = $(this).closest('.card');
-                
-                $.post('@Url.Action("HandleRequest")', { requestId: requestId, accept: accept })
-                    .done(function(response) {
+        $(document).ready(function () {
+            $('.accept-request, .reject-request').click(function () {
+                const button = $(this);
+                const requestItem = button.closest('.request-item');
+                const requestId = requestItem.data('request-id');
+                const isAccept = button.hasClass('accept-request');
+
+                $.post('/Friend/HandleRequest', { requestId: requestId, accept: isAccept })
+                    .done(function (response) {
                         if (response.success) {
-                            card.fadeOut(function() {
+                            requestItem.fadeOut(function () {
                                 $(this).remove();
-                                if ($('.card').length === 0) {
-                                    location.reload();
+                                if ($('.request-item').length === 0) {
+                                    $('.card-body').html('<div class="alert alert-info">暂无好友申请</div>');
                                 }
                             });
                         } else {
                             alert(response.message || '操作失败');
                         }
                     })
-                    .fail(function() {
+                    .fail(function () {
                         alert('操作失败，请稍后重试');
                     });
             });

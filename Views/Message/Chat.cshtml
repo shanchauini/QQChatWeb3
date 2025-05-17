@@ -117,6 +117,26 @@
                 chatContainer.scrollTop(chatContainer[0].scrollHeight);
             }
 
+            // 添加消息到聊天界面
+            function addMessage(message, isSent) {
+                const messageHtml = `
+                    <div class="message ${isSent ? 'sent' : 'received'}">
+                        ${message.messageType === 'File' 
+                            ? `<div class="file-message">
+                                <i class="fas fa-file file-icon"></i>
+                                <a href="${message.filePath}" target="_blank">${message.content}</a>
+                               </div>`
+                            : `<div>${message.content}</div>`
+                        }
+                        <div class="message-time">
+                            ${new Date().toLocaleString()}
+                        </div>
+                    </div>
+                `;
+                chatContainer.append(messageHtml);
+                scrollToBottom();
+            }
+
             // 发送消息
             messageForm.submit(function (e) {
                 e.preventDefault();
@@ -126,9 +146,15 @@
                 $.post('/Message/Send', { receiverId: friendId, content: content })
                     .done(function (response) {
                         if (response.success) {
+                            addMessage({
+                                content: content,
+                                messageType: 'Text'
+                            }, true);
                             messageContent.val('');
-                            checkNewMessages();
                         }
+                    })
+                    .fail(function () {
+                        alert('发送消息失败，请稍后重试');
                     });
             });
 
@@ -153,8 +179,15 @@
                     contentType: false,
                     success: function (response) {
                         if (response.success) {
-                            checkNewMessages();
+                            addMessage({
+                                content: file.name,
+                                messageType: 'File',
+                                filePath: response.filePath
+                            }, true);
                         }
+                    },
+                    error: function () {
+                        alert('上传文件失败，请稍后重试');
                     }
                 });
             });
@@ -165,13 +198,17 @@
                     .done(function (html) {
                         const tempDiv = $('<div>').html(html);
                         const newMessages = tempDiv.find('.message');
-                        chatContainer.html(newMessages);
-                        scrollToBottom();
+                        const currentMessageCount = chatContainer.find('.message').length;
+                        
+                        if (newMessages.length > currentMessageCount) {
+                            chatContainer.html(newMessages);
+                            scrollToBottom();
+                        }
                     });
             }
 
             // 定期检查新消息
-            setInterval(checkNewMessages, 5000);
+            setInterval(checkNewMessages, 3000);
 
             // 初始滚动到底部
             scrollToBottom();
